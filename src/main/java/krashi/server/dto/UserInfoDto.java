@@ -1,8 +1,5 @@
 package krashi.server.dto;
 
-import lombok.Data;
-import lombok.Getter;
-
 
 public class UserInfoDto {
     private String username;

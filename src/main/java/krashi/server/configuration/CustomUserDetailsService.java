@@ -2,8 +2,6 @@ package krashi.server.configuration;
 
 import krashi.server.entity.UserInfo;
 import krashi.server.repository.UserInfoRepository;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

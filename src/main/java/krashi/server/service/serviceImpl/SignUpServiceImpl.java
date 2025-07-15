@@ -30,7 +30,7 @@ public class SignUpServiceImpl implements SignUpService {
         user.setName(name);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRole(role);
+        user.setRole("ROLE_" + role);
 
         userInfoRepository.save(user);
 

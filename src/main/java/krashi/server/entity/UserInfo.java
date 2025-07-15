@@ -2,7 +2,6 @@ package krashi.server.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.Getter;
 
 @Entity
 @Table(name = "user_info")

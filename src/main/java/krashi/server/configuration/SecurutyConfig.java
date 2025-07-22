@@ -29,15 +29,17 @@ public class SecurutyConfig {
         http.csrf(AbstractHttpConfigurer::disable);
         http.authorizeHttpRequests(authorizeRequests -> authorizeRequests
             .requestMatchers(
-                "/", "/hello", "/signup", "/events",
+                "/", "/hello", "/signup", "/events", "/events/**",
                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
             ).permitAll()
             .requestMatchers("/admin/**").hasRole("ADMIN")
             .requestMatchers("/user/**").hasRole("USER")
             .anyRequest().authenticated()
         );
-        http.formLogin(withDefaults());
+        
+        // http.formLogin(withDefaults());
         http.httpBasic(withDefaults());
+        
         return http.build();
     }
 

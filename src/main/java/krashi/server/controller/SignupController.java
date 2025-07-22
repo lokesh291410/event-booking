@@ -5,6 +5,7 @@ import krashi.server.service.SignUpService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,22 +15,6 @@ public class SignupController {
 
     @Autowired
     SignUpService signUpService;
-
-    // @GetMapping("/hello")
-    // public String hello() {
-    //     return "Hello";
-    // }
-
-    // @GetMapping("/secure")
-    // @PreAuthorize("hasRole('ADMIN')")
-    // public String secure() {
-    //     return "Secure";
-    // }
-
-    // @GetMapping("/")
-    // public String home() {
-    //     return "Home";
-    // }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signUp(@RequestBody UserInfoDto userInfoDto) {
@@ -45,5 +30,20 @@ public class SignupController {
     @GetMapping("/events")
     public ResponseEntity<?> getAllEvents() {
         return signUpService.getAllEvents();
+    }
+    
+    @GetMapping("/events/published")
+    public ResponseEntity<?> getPublishedEvents() {
+        return signUpService.getPublishedEvents();
+    }
+    
+    @GetMapping("/events/{eventId}")
+    public ResponseEntity<?> getEventDetails(@PathVariable Long eventId) {
+        return signUpService.getEventDetails(eventId);
+    }
+    
+    @GetMapping("/events/categories")
+    public ResponseEntity<?> getEventCategories() {
+        return signUpService.getEventCategories();
     }
 }

@@ -1,5 +1,7 @@
 package krashi.server.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,12 +25,12 @@ public class AdminController {
     private final AdminService adminService;
 
     @PostMapping("/event")
-    public ResponseEntity<?> createEvent(@RequestBody EventDto eventDto, @RequestParam Long adminId) {
+    public ResponseEntity<?> createEvent(@Valid @RequestBody EventDto eventDto, @RequestParam Long adminId) {
         return adminService.createEvent(eventDto, adminId);
     }
 
     @PutMapping("/event/{eventId}")
-    public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @RequestBody EventDto eventDto, @RequestParam Long adminId) {
+    public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @Valid @RequestBody EventDto eventDto, @RequestParam Long adminId) {
         return adminService.updateEvent(eventId, eventDto, adminId);
     }
 

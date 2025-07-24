@@ -3,14 +3,19 @@ package krashi.server.service.serviceImpl;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import krashi.server.dto.BookingDto;
+import krashi.server.dto.EventDetailResponseDto;
 import krashi.server.dto.EventDto;
+import krashi.server.dto.EventResponseDto;
 import krashi.server.entity.Booking;
 import krashi.server.entity.Event;
 import krashi.server.entity.EventFeedback;
@@ -19,6 +24,8 @@ import krashi.server.entity.Waitlist;
 import krashi.server.exception.AccessDeniedException;
 import krashi.server.exception.BadRequestException;
 import krashi.server.exception.ResourceNotFoundException;
+import krashi.server.mapping.BookingToDto;
+import krashi.server.mapping.EventToDto;
 import krashi.server.repository.BookingRepository;
 import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
@@ -274,7 +281,115 @@ public class AdminServiceImpl implements AdminService{
     @Override
     public ResponseEntity<?> getAdminEvents(Long adminId) {
         List<Event> events = eventRepository.findByCreatedBy_Id(adminId);
-        return ResponseEntity.ok(events);
+        List<EventResponseDto> eventDtos = events.stream()
+                .map(EventToDto::mapToResponseDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(eventDtos);
+    }
+
+    @Override
+    public ResponseEntity<?> getEventDetails(Long eventId, Long adminId) {
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+        
+        // Check if the admin is the creator of the event
+        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
+            throw new AccessDeniedException("You can only view details for events you created");
+        }
+        
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        
+        // Create comprehensive event details
+        EventDetailResponseDto details = new EventDetailResponseDto();
+        
+        // Basic event information
+        details.setId(event.getId());
+        details.setTitle(event.getTitle());
+        details.setDescription(event.getDescription());
+        
+        if (event.getDateTime() != null) {
+            details.setDate(event.getDateTime().toLocalDate().format(dateFormatter));
+            details.setTime(event.getDateTime().toLocalTime().format(timeFormatter));
+        }
+        
+        if (event.getEndDateTime() != null) {
+            details.setEndDate(event.getEndDateTime().toLocalDate().format(dateFormatter));
+            details.setEndTime(event.getEndDateTime().toLocalTime().format(timeFormatter));
+        }
+        
+        details.setLocation(event.getLocation());
+        details.setTotalSeats(event.getTotalSeats());
+        details.setAvailableSeats(event.getAvailableSeats());
+        details.setCategory(event.getCategory());
+        details.setImageUrl(event.getImageUrl());
+        details.setPrice(event.getPrice());
+        details.setOrganizerName(event.getOrganizerName());
+        details.setOrganizerEmail(event.getOrganizerEmail());
+        details.setStatus(event.getStatus());
+        details.setCreatedAt(event.getCreatedAt());
+        details.setUpdatedAt(event.getUpdatedAt());
+        
+        // Creator information
+        if (event.getCreatedBy() != null) {
+            details.setCreatedById(event.getCreatedBy().getId());
+            details.setCreatedByName(event.getCreatedBy().getName());
+        }
+        
+        // Get statistics
+        List<Booking> bookings = bookingRepository.findByEvent_Id(eventId);
+        List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
+        List<EventFeedback> feedbacks = eventFeedbackRepository.findByEventId(eventId);
+        Double averageRating = eventFeedbackRepository.getAverageRatingByEventId(eventId);
+        
+        details.setTotalBookings(bookings.size());
+        details.setBookedSeats(event.getTotalSeats() - event.getAvailableSeats());
+        details.setWaitlistCount(waitlist.size());
+        details.setAverageRating(averageRating != null ? averageRating : 0.0);
+        details.setTotalFeedbacks(feedbacks.size());
+        
+        // Recent bookings (last 5)
+        List<BookingDto> recentBookings = bookings.stream()
+                .sorted((b1, b2) -> b2.getBookingDateTime().compareTo(b1.getBookingDateTime()))
+                .limit(5)
+                .map(BookingToDto::mapToDto)
+                .collect(Collectors.toList());
+        details.setRecentBookings(recentBookings);
+        
+        // Waitlist users
+        List<EventDetailResponseDto.WaitlistSummaryDto> waitlistSummary = waitlist.stream()
+                .map(w -> {
+                    EventDetailResponseDto.WaitlistSummaryDto dto = new EventDetailResponseDto.WaitlistSummaryDto();
+                    dto.setId(w.getId());
+                    dto.setUserName(w.getUser().getUserName());
+                    dto.setUserEmail(w.getUser().getEmail());
+                    dto.setRequestedSeats(w.getRequestedSeats());
+                    dto.setStatus(w.getStatus());
+                    dto.setJoinedAt(w.getJoinedAt());
+                    dto.setNotifiedAt(w.getNotifiedAt());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+        details.setWaitlistUsers(waitlistSummary);
+        
+        // Recent feedbacks (last 5)
+        List<EventDetailResponseDto.FeedbackSummaryDto> recentFeedbacks = feedbacks.stream()
+                .sorted((f1, f2) -> f2.getSubmittedAt().compareTo(f1.getSubmittedAt()))
+                .limit(5)
+                .map(f -> {
+                    EventDetailResponseDto.FeedbackSummaryDto dto = new EventDetailResponseDto.FeedbackSummaryDto();
+                    dto.setId(f.getId());
+                    dto.setUserName(f.getUser().getUserName());
+                    dto.setRating(f.getRating());
+                    dto.setComment(f.getComment());
+                    dto.setWouldRecommend(f.isWouldRecommend());
+                    dto.setSubmittedAt(f.getSubmittedAt());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+        details.setRecentFeedbacks(recentFeedbacks);
+        
+        return ResponseEntity.ok(details);
     }
 
     @Override

@@ -17,6 +17,7 @@ public interface AdminService {
     ResponseEntity<?> getEventWaitlist(Long eventId, Long adminId);
     ResponseEntity<?> getEventFeedback(Long eventId, Long adminId);
     ResponseEntity<?> getAdminEvents(Long adminId); // Admin can see only their events
+    ResponseEntity<?> getEventDetails(Long eventId, Long adminId); // Get comprehensive event details
     
     // Waitlist management
     ResponseEntity<?> notifyWaitlistUsers(Long eventId, Long adminId);

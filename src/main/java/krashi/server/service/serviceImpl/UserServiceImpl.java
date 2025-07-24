@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import krashi.server.dto.BookingDto;
 import krashi.server.dto.EventFeedbackDto;
+import krashi.server.dto.EventResponseDto;
+import krashi.server.dto.UserFeedbackResponseDto;
 import krashi.server.exception.AccessDeniedException;
 import krashi.server.exception.BadRequestException;
 import krashi.server.exception.InsufficientSeatsException;
@@ -19,6 +21,8 @@ import krashi.server.entity.EventFeedback;
 import krashi.server.entity.UserInfo;
 import krashi.server.entity.Waitlist;
 import krashi.server.mapping.BookingToDto;
+import krashi.server.mapping.EventFeedbackToDto;
+import krashi.server.mapping.EventToDto;
 import krashi.server.repository.BookingRepository;
 import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
@@ -285,15 +289,22 @@ public class UserServiceImpl implements UserService {
         userInfoRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
 
-        // Get user feedback
+        // Get user feedback and convert to DTOs
         List<EventFeedback> feedback = eventFeedbackRepository.findByUserId(userId);
-        return ResponseEntity.ok(feedback);
+        List<UserFeedbackResponseDto> feedbackDtos = feedback.stream()
+                .map(EventFeedbackToDto::mapToUserResponseDto)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(feedbackDtos);
     }
 
     @Override
     public ResponseEntity<?> getUpcomingEvents() {
         List<Event> events = eventRepository.findUpcomingPublicEvents(LocalDateTime.now());
-        return ResponseEntity.ok(events);
+        List<EventResponseDto> eventDtos = events.stream()
+                .map(EventToDto::mapToResponseDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(eventDtos);
     }
 
     @Override
@@ -304,13 +315,19 @@ public class UserServiceImpl implements UserService {
         }
 
         List<Event> events = eventRepository.findByCategory(category);
-        return ResponseEntity.ok(events);
+        List<EventResponseDto> eventDtos = events.stream()
+                .map(EventToDto::mapToResponseDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(eventDtos);
     }
 
     @Override
     public ResponseEntity<?> searchEvents(String keyword) {
         List<Event> events = eventRepository.findByTitleContainingIgnoreCase(keyword);
-        return ResponseEntity.ok(events);
+        List<EventResponseDto> eventDtos = events.stream()
+                .map(EventToDto::mapToResponseDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(eventDtos);
     }
     
 }

@@ -3,6 +3,7 @@ package krashi.server.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import lombok.AllArgsConstructor;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/admin")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:4200"})
 public class AdminController {
 
     private final AdminService adminService;
@@ -72,6 +74,11 @@ public class AdminController {
     @GetMapping("/events")
     public ResponseEntity<?> getAdminEvents(@RequestParam Long adminId) {
         return adminService.getAdminEvents(adminId);
+    }
+    
+    @GetMapping("/event/{eventId}")
+    public ResponseEntity<?> getEventDetails(@PathVariable Long eventId, @RequestParam Long adminId) {
+        return adminService.getEventDetails(eventId, adminId);
     }
     
     @PostMapping("/event/{eventId}/notify-waitlist")

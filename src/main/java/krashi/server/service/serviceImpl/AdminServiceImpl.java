@@ -255,7 +255,6 @@ public class AdminServiceImpl implements AdminService{
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
         
-        // Check if the admin is the creator of the event
         if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
             throw new AccessDeniedException("You can only view waitlist for events you created");
         }
@@ -269,7 +268,6 @@ public class AdminServiceImpl implements AdminService{
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
         
-        // Check if the admin is the creator of the event
         if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
             throw new AccessDeniedException("You can only view feedback for events you created");
         }
@@ -292,7 +290,6 @@ public class AdminServiceImpl implements AdminService{
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
         
-        // Check if the admin is the creator of the event
         if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
             throw new AccessDeniedException("You can only view details for events you created");
         }
@@ -300,10 +297,8 @@ public class AdminServiceImpl implements AdminService{
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
         
-        // Create comprehensive event details
         EventDetailResponseDto details = new EventDetailResponseDto();
         
-        // Basic event information
         details.setId(event.getId());
         details.setTitle(event.getTitle());
         details.setDescription(event.getDescription());
@@ -330,13 +325,11 @@ public class AdminServiceImpl implements AdminService{
         details.setCreatedAt(event.getCreatedAt());
         details.setUpdatedAt(event.getUpdatedAt());
         
-        // Creator information
         if (event.getCreatedBy() != null) {
             details.setCreatedById(event.getCreatedBy().getId());
             details.setCreatedByName(event.getCreatedBy().getName());
         }
         
-        // Get statistics
         List<Booking> bookings = bookingRepository.findByEvent_Id(eventId);
         List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
         List<EventFeedback> feedbacks = eventFeedbackRepository.findByEventId(eventId);
@@ -348,7 +341,6 @@ public class AdminServiceImpl implements AdminService{
         details.setAverageRating(averageRating != null ? averageRating : 0.0);
         details.setTotalFeedbacks(feedbacks.size());
         
-        // Recent bookings (last 5)
         List<BookingDto> recentBookings = bookings.stream()
                 .sorted((b1, b2) -> b2.getBookingDateTime().compareTo(b1.getBookingDateTime()))
                 .limit(5)
@@ -356,7 +348,6 @@ public class AdminServiceImpl implements AdminService{
                 .collect(Collectors.toList());
         details.setRecentBookings(recentBookings);
         
-        // Waitlist users
         List<EventDetailResponseDto.WaitlistSummaryDto> waitlistSummary = waitlist.stream()
                 .map(w -> {
                     EventDetailResponseDto.WaitlistSummaryDto dto = new EventDetailResponseDto.WaitlistSummaryDto();
@@ -372,7 +363,6 @@ public class AdminServiceImpl implements AdminService{
                 .collect(Collectors.toList());
         details.setWaitlistUsers(waitlistSummary);
         
-        // Recent feedbacks (last 5)
         List<EventDetailResponseDto.FeedbackSummaryDto> recentFeedbacks = feedbacks.stream()
                 .sorted((f1, f2) -> f2.getSubmittedAt().compareTo(f1.getSubmittedAt()))
                 .limit(5)
@@ -397,7 +387,6 @@ public class AdminServiceImpl implements AdminService{
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
         
-        // Check if the admin is the creator of the event
         if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
             throw new AccessDeniedException("You can only notify waitlist users for events you created");
         }

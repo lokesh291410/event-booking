@@ -314,7 +314,8 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Category is required");
         }
 
-        List<Event> events = eventRepository.findByCategory(category);
+        // Get only published events by category
+        List<Event> events = eventRepository.findByCategoryAndStatus(category, "PUBLISHED");
         List<EventResponseDto> eventDtos = events.stream()
                 .map(EventToDto::mapToResponseDto)
                 .collect(Collectors.toList());
@@ -323,7 +324,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ResponseEntity<?> searchEvents(String keyword) {
-        List<Event> events = eventRepository.findByTitleContainingIgnoreCase(keyword);
+        // Get only published events matching the keyword
+        List<Event> events = eventRepository.findByTitleContainingIgnoreCaseAndStatus(keyword, "PUBLISHED");
         List<EventResponseDto> eventDtos = events.stream()
                 .map(EventToDto::mapToResponseDto)
                 .collect(Collectors.toList());

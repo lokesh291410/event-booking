@@ -13,8 +13,10 @@ import krashi.server.entity.Event;
 public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByStatus(String status);
     List<Event> findByCategory(String category);
+    List<Event> findByCategoryAndStatus(String category, String status);
     List<Event> findByDateTimeBetween(LocalDateTime start, LocalDateTime end);
     List<Event> findByTitleContainingIgnoreCase(String title);
+    List<Event> findByTitleContainingIgnoreCaseAndStatus(String title, String status);
     
     // Methods for admin-specific event management
     List<Event> findByCreatedBy_Id(Long createdById);

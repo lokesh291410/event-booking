@@ -12,7 +12,10 @@ public class UserInfo {
     private Long id;
     private String userName;
     private String name;
+    
+    @Column(unique = true, nullable = false)
     private String email;
+    
     private String password;
     private String role;
 

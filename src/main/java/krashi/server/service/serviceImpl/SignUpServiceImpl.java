@@ -11,6 +11,7 @@ import krashi.server.entity.Event;
 import krashi.server.entity.EventFeedback;
 import krashi.server.entity.UserInfo;
 import krashi.server.entity.Waitlist;
+import krashi.server.exception.BadRequestException;
 import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
 import krashi.server.repository.UserInfoRepository;
@@ -41,6 +42,16 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public ResponseEntity<?> signUp(String username, String name, String email, String password, String role) {
+        // Check if email already exists
+        if (userInfoRepository.findByEmail(email).isPresent()) {
+            throw new BadRequestException("Email already exists. Please use a different email address.");
+        }
+        
+        // Check if username already exists
+        if (userInfoRepository.findByUserName(username).isPresent()) {
+            throw new BadRequestException("Username already exists. Please choose a different username.");
+        }
+        
         UserInfo user = new UserInfo();
         user.setUserName(username);
         user.setName(name);

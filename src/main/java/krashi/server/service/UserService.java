@@ -5,21 +5,18 @@ import org.springframework.http.ResponseEntity;
 import krashi.server.dto.EventFeedbackDto;
 
 public interface UserService {
-    ResponseEntity<?> bookEvent(Long eventId, Long userId, int numberOfSeats);
-    ResponseEntity<?> cancelBooking(Long bookingId, Long userId);
-    ResponseEntity<?> getBookingDetails(Long bookingId, Long userId);
-    ResponseEntity<?> getUserBookings(Long userId);
+    ResponseEntity<?> bookEvent(Long eventId, int numberOfSeats);
+    ResponseEntity<?> cancelBooking(Long bookingId);
+    ResponseEntity<?> getBookingDetails(Long bookingId);
+    ResponseEntity<?> getUserBookings();
     
-    // Waitlist functionality
-    ResponseEntity<?> joinWaitlist(Long eventId, Long userId, int numberOfSeats);
-    ResponseEntity<?> getUserWaitlist(Long userId);
-    ResponseEntity<?> removeFromWaitlist(Long waitlistId, Long userId);
+    ResponseEntity<?> joinWaitlist(Long eventId, int numberOfSeats);
+    ResponseEntity<?> getUserWaitlist();
+    ResponseEntity<?> removeFromWaitlist(Long waitlistId);
     
-    // Feedback functionality
-    ResponseEntity<?> submitEventFeedback(EventFeedbackDto feedbackDto, Long userId);
-    ResponseEntity<?> getUserFeedback(Long userId);
+    ResponseEntity<?> submitEventFeedback(EventFeedbackDto feedbackDto);
+    ResponseEntity<?> getUserFeedback();
     
-    // Event browsing
     ResponseEntity<?> getUpcomingEvents();
     ResponseEntity<?> getEventsByCategory(String category);
     ResponseEntity<?> searchEvents(String keyword);

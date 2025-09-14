@@ -1,12 +1,17 @@
 package krashi.server.entity;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,7 +34,7 @@ public class Event {
     
     private String category; // WORKSHOP, CONFERENCE, HACKATHON, MEETUP, WEBINAR, SEMINAR
     
-    private String status; 
+    private String status; // SCHEDULED, CANCELLED, COMPLETED, DRAFT
     
     private String imageUrl;
     
@@ -41,7 +46,16 @@ public class Event {
     
     @ManyToOne
     @JoinColumn(name = "created_by")
-    private UserInfo createdBy; // The admin who created this event
+    private UserInfo createdBy;
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Booking> booking;
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Waitlist> waitlists;
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<EventFeedback> feedbacks;
     
     private LocalDateTime createdAt;
     

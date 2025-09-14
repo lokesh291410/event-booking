@@ -26,8 +26,8 @@ import krashi.server.mapping.EventToDto;
 import krashi.server.repository.BookingRepository;
 import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
-import krashi.server.repository.UserInfoRepository;
 import krashi.server.repository.WaitlistRepository;
+import krashi.server.service.AuthenticationService;
 import krashi.server.service.UserService;
 import lombok.AllArgsConstructor;
 
@@ -37,41 +37,73 @@ public class UserServiceImpl implements UserService {
 
     private static final int MAX_SEATS_PER_BOOKING = 5;
     private final EventRepository eventRepository;
-    private final UserInfoRepository userInfoRepository;
     private final BookingRepository bookingRepository;
     private final WaitlistRepository waitlistRepository;
     private final EventFeedbackRepository eventFeedbackRepository;
+    private final AuthenticationService authenticationService;
+
+    private void verifyBookingOwnership(Booking booking, UserInfo user) {
+        if (booking.getUser() == null) {
+            throw new BadRequestException("Booking has no user assigned");
+        }
+        
+        if (user == null || user.getId() == null) {
+            throw new BadRequestException("Invalid user");
+        }
+        
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You can only access your own bookings");
+        }
+    }
+
+    private void verifyWaitlistOwnership(Waitlist waitlist, UserInfo user) {
+        if (waitlist.getUser() == null) {
+            throw new BadRequestException("Waitlist entry has no user assigned");
+        }
+        
+        if (user == null || user.getId() == null) {
+            throw new BadRequestException("Invalid user");
+        }
+        
+        if (!waitlist.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You can only access your own waitlist entries");
+        }
+    }
+
+    private void verifyFeedbackEligibility(Long eventId, UserInfo user) {
+        List<Booking> userBookings = bookingRepository.findByUser_Id(user.getId());
+        boolean hasConfirmedBooking = userBookings.stream()
+            .anyMatch(booking -> booking.getEvent().getId().equals(eventId) && 
+                                "Confirmed".equals(booking.getStatus()));
+        
+        if (!hasConfirmedBooking) {
+            throw new AccessDeniedException("You can only submit feedback for events you have booked");
+        }
+    }
 
     @Override
-    public ResponseEntity<?> bookEvent(Long eventId, Long userId, int numberOfSeats) {
-        // Validate input parameters
-        if (eventId == null || userId == null) {
-            throw new BadRequestException("Event ID and User ID are required");
+    public ResponseEntity<?> bookEvent(Long eventId, int numberOfSeats) {
+        UserInfo user = authenticationService.getCurrentUser();
+        
+        if (eventId == null) {
+            throw new BadRequestException("Event ID is required");
         }
         
         if (numberOfSeats <= 0 || numberOfSeats > MAX_SEATS_PER_BOOKING) {
             throw new BadRequestException("Number of seats must be between 1 and " + MAX_SEATS_PER_BOOKING);
         }
 
-        // Find event
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
         
-        // Check if event is published
         if (!"PUBLISHED".equals(event.getStatus())) {
             throw new BadRequestException("Event is not available for booking");
         }
         
-        // Check seat availability
         if (event.getAvailableSeats() < numberOfSeats) {
             throw new InsufficientSeatsException("Not enough seats available. Available: " + event.getAvailableSeats() + ", Requested: " + numberOfSeats);
         }
 
-        // Find user
-        UserInfo user = userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
-
-        // Create booking
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setEvent(event);
@@ -79,7 +111,6 @@ public class UserServiceImpl implements UserService {
         booking.setBookingDateTime(LocalDateTime.now());
         booking.setStatus("Confirmed");
 
-        // Update available seats
         event.setAvailableSeats(event.getAvailableSeats() - numberOfSeats);
         eventRepository.save(event);
         bookingRepository.save(booking);
@@ -88,32 +119,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> cancelBooking(Long bookingId, Long userId) {
-        // Validate input parameters
-        if (bookingId == null || userId == null) {
-            throw new BadRequestException("Booking ID and User ID are required");
+    public ResponseEntity<?> cancelBooking(Long bookingId) {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        if (bookingId == null) {
+            throw new BadRequestException("Booking ID is required");
         }
 
-        // Find booking
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking with ID " + bookingId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
 
-        // Check authorization
-        if (!booking.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("You are not authorized to cancel this booking");
-        }
+        verifyBookingOwnership(booking, currentUser);
 
-        // Check if booking can be cancelled
         if ("Cancelled".equals(booking.getStatus())) {
             throw new BadRequestException("Booking is already cancelled");
         }
 
-        // Update event seats
         Event event = booking.getEvent();
         event.setAvailableSeats(event.getAvailableSeats() + booking.getNumberOfSeats());
         eventRepository.save(event);
 
-        // Cancel booking
         booking.setStatus("Cancelled");
         bookingRepository.save(booking);
         
@@ -121,38 +146,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> getBookingDetails(Long bookingId, Long userId) {
-        // Validate input parameters
-        if (bookingId == null || userId == null) {
-            throw new BadRequestException("Booking ID and User ID are required");
+    public ResponseEntity<?> getBookingDetails(Long bookingId) {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        if (bookingId == null) {
+            throw new BadRequestException("Booking ID is required");
         }
 
-        // Find booking
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking with ID " + bookingId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", "id", bookingId));
 
-        // Check authorization
-        if (!booking.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("You are not authorized to view this booking");
-        }
+        verifyBookingOwnership(booking, currentUser);
 
         BookingDto bookingDto = BookingToDto.mapToDto(booking);
         return ResponseEntity.ok(bookingDto);
     }
 
     @Override
-    public ResponseEntity<?> getUserBookings(Long userId) {
-        // Validate input parameters
-        if (userId == null) {
-            throw new BadRequestException("User ID is required");
-        }
-
-        // Verify user exists
-        userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
-
-        // Get user bookings
-        List<Booking> bookings = bookingRepository.findByUser_Id(userId);
+    public ResponseEntity<?> getUserBookings() {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        List<Booking> bookings = bookingRepository.findByUser_Id(currentUser.getId());
         List<BookingDto> bookingDtos = bookings.stream()
                 .map(BookingToDto::mapToDto)
                 .collect(Collectors.toList());
@@ -161,37 +175,30 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> joinWaitlist(Long eventId, Long userId, int numberOfSeats) {
-        // Validate input parameters
-        if (eventId == null || userId == null) {
-            throw new BadRequestException("Event ID and User ID are required");
+    public ResponseEntity<?> joinWaitlist(Long eventId, int numberOfSeats) {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        if (eventId == null) {
+            throw new BadRequestException("Event ID is required");
         }
         
         if (numberOfSeats <= 0) {
             throw new BadRequestException("Number of seats must be greater than 0");
         }
 
-        // Find event
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
 
-        // Check if event has available seats
         if (event.getAvailableSeats() >= numberOfSeats) {
             throw new BadRequestException("Event has available seats. Please book directly.");
         }
 
-        // Check if user is already on waitlist
-        if (waitlistRepository.existsByUserIdAndEventId(userId, eventId)) {
+        if (waitlistRepository.existsByUserIdAndEventId(currentUser.getId(), eventId)) {
             throw new BadRequestException("You are already on the waitlist for this event");
         }
 
-        // Find user
-        UserInfo user = userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
-
-        // Create waitlist entry
         Waitlist waitlist = new Waitlist();
-        waitlist.setUser(user);
+        waitlist.setUser(currentUser);
         waitlist.setEvent(event);
         waitlist.setRequestedSeats(numberOfSeats);
         waitlist.setStatus("WAITING");
@@ -202,46 +209,36 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> getUserWaitlist(Long userId) {
-        // Validate input parameters
-        if (userId == null) {
-            throw new BadRequestException("User ID is required");
-        }
-
-        // Verify user exists
-        userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
-
-        // Get user waitlist entries
-        List<Waitlist> waitlist = waitlistRepository.findByUserIdAndStatus(userId, "WAITING");
+    public ResponseEntity<?> getUserWaitlist() {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        List<Waitlist> waitlist = waitlistRepository.findByUserIdAndStatus(currentUser.getId(), "WAITING");
         return ResponseEntity.ok(waitlist);
     }
 
     @Override
-    public ResponseEntity<?> removeFromWaitlist(Long waitlistId, Long userId) {
-        // Validate input parameters
-        if (waitlistId == null || userId == null) {
-            throw new BadRequestException("Waitlist ID and User ID are required");
+    public ResponseEntity<?> removeFromWaitlist(Long waitlistId) {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        if (waitlistId == null) {
+            throw new BadRequestException("Waitlist ID is required");
         }
 
-        // Find waitlist entry
         Waitlist waitlist = waitlistRepository.findById(waitlistId)
-                .orElseThrow(() -> new ResourceNotFoundException("Waitlist entry with ID " + waitlistId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Waitlist entry", "id", waitlistId));
 
-        // Check authorization
-        if (!waitlist.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("You are not authorized to remove this waitlist entry");
-        }
+        verifyWaitlistOwnership(waitlist, currentUser);
 
         waitlistRepository.delete(waitlist);
         return ResponseEntity.ok("Removed from waitlist");
     }
 
     @Override
-    public ResponseEntity<?> submitEventFeedback(EventFeedbackDto feedbackDto, Long userId) {
-        // Validate input parameters
-        if (feedbackDto == null || userId == null) {
-            throw new BadRequestException("Feedback data and User ID are required");
+    public ResponseEntity<?> submitEventFeedback(EventFeedbackDto feedbackDto) {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        if (feedbackDto == null) {
+            throw new BadRequestException("Feedback data is required");
         }
         
         if (feedbackDto.getEventId() == null) {
@@ -252,21 +249,18 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Rating must be between 1 and 5");
         }
 
-        // Check if feedback already exists
-        if (eventFeedbackRepository.existsByUserIdAndEventId(userId, feedbackDto.getEventId())) {
+        // Verify user has booked this event
+        verifyFeedbackEligibility(feedbackDto.getEventId(), currentUser);
+
+        if (eventFeedbackRepository.existsByUserIdAndEventId(currentUser.getId(), feedbackDto.getEventId())) {
             throw new BadRequestException("You have already submitted feedback for this event");
         }
-
-        // Find user and event
-        UserInfo user = userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
         
         Event event = eventRepository.findById(feedbackDto.getEventId())
-                .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + feedbackDto.getEventId() + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", feedbackDto.getEventId()));
 
-        // Create feedback
         EventFeedback feedback = new EventFeedback();
-        feedback.setUser(user);
+        feedback.setUser(currentUser);
         feedback.setEvent(event);
         feedback.setRating(feedbackDto.getRating());
         feedback.setComment(feedbackDto.getComment());
@@ -279,18 +273,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> getUserFeedback(Long userId) {
-        // Validate input parameters
-        if (userId == null) {
-            throw new BadRequestException("User ID is required");
-        }
-
-        // Verify user exists
-        userInfoRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " not found"));
-
-        // Get user feedback and convert to DTOs
-        List<EventFeedback> feedback = eventFeedbackRepository.findByUserId(userId);
+    public ResponseEntity<?> getUserFeedback() {
+        UserInfo currentUser = authenticationService.getCurrentUser();
+        
+        List<EventFeedback> feedback = eventFeedbackRepository.findByUserId(currentUser.getId());
         List<UserFeedbackResponseDto> feedbackDtos = feedback.stream()
                 .map(EventFeedbackToDto::mapToUserResponseDto)
                 .collect(Collectors.toList());
@@ -309,12 +295,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ResponseEntity<?> getEventsByCategory(String category) {
-        // Validate input parameters
         if (category == null || category.trim().isEmpty()) {
             throw new BadRequestException("Category is required");
         }
 
-        // Get only published events by category
         List<Event> events = eventRepository.findByCategoryAndStatus(category, "PUBLISHED");
         List<EventResponseDto> eventDtos = events.stream()
                 .map(EventToDto::mapToResponseDto)
@@ -324,7 +308,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ResponseEntity<?> searchEvents(String keyword) {
-        // Get only published events matching the keyword
         List<Event> events = eventRepository.findByTitleContainingIgnoreCaseAndStatus(keyword, "PUBLISHED");
         List<EventResponseDto> eventDtos = events.stream()
                 .map(EventToDto::mapToResponseDto)

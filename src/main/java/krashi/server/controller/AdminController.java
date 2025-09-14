@@ -3,7 +3,6 @@ package krashi.server.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,69 +20,68 @@ import lombok.AllArgsConstructor;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/admin")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:4200"})
 public class AdminController {
 
     private final AdminService adminService;
 
     @PostMapping("/event")
-    public ResponseEntity<?> createEvent(@Valid @RequestBody EventDto eventDto, @RequestParam Long adminId) {
-        return adminService.createEvent(eventDto, adminId);
+    public ResponseEntity<?> createEvent(@Valid @RequestBody EventDto eventDto) {
+        return adminService.createEvent(eventDto);
     }
 
     @PutMapping("/event/{eventId}")
-    public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @Valid @RequestBody EventDto eventDto, @RequestParam Long adminId) {
-        return adminService.updateEvent(eventId, eventDto, adminId);
+    public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @Valid @RequestBody EventDto eventDto) {
+        return adminService.updateEvent(eventId, eventDto);
     }
 
     @DeleteMapping("/event/{eventId}")
-    public ResponseEntity<?> deleteEvent(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.deleteEvent(eventId, adminId);
+    public ResponseEntity<?> deleteEvent(@PathVariable Long eventId) {
+        return adminService.deleteEvent(eventId);
     }
     
     @PostMapping("/event/{eventId}/publish")
-    public ResponseEntity<?> publishEvent(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.publishEvent(eventId, adminId);
+    public ResponseEntity<?> publishEvent(@PathVariable Long eventId) {
+        return adminService.publishEvent(eventId);
     }
     
     @PostMapping("/event/{eventId}/cancel")
-    public ResponseEntity<?> cancelEvent(@PathVariable Long eventId, @RequestParam String reason, @RequestParam Long adminId) {
-        return adminService.cancelEvent(eventId, reason, adminId);
+    public ResponseEntity<?> cancelEvent(@PathVariable Long eventId, @RequestParam String reason) {
+        return adminService.cancelEvent(eventId, reason);
     }
     
     @GetMapping("/event/{eventId}/statistics")
-    public ResponseEntity<?> getEventStatistics(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.getEventStatistics(eventId, adminId);
+    public ResponseEntity<?> getEventStatistics(@PathVariable Long eventId) {
+        return adminService.getEventStatistics(eventId);
     }
     
     @GetMapping("/event/{eventId}/bookings")
-    public ResponseEntity<?> getEventBookings(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.getEventBookings(eventId, adminId);
+    public ResponseEntity<?> getEventBookings(@PathVariable Long eventId) {
+        return adminService.getEventBookings(eventId);
     }
     
     @GetMapping("/event/{eventId}/waitlist")
-    public ResponseEntity<?> getEventWaitlist(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.getEventWaitlist(eventId, adminId);
+    public ResponseEntity<?> getEventWaitlist(@PathVariable Long eventId) {
+        return adminService.getEventWaitlist(eventId);
     }
     
     @GetMapping("/event/{eventId}/feedback")
-    public ResponseEntity<?> getEventFeedback(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.getEventFeedback(eventId, adminId);
+    public ResponseEntity<?> getEventFeedback(@PathVariable Long eventId) {
+        return adminService.getEventFeedback(eventId);
     }
     
     @GetMapping("/events")
-    public ResponseEntity<?> getAdminEvents(@RequestParam Long adminId) {
-        return adminService.getAdminEvents(adminId);
+    public ResponseEntity<?> getAdminEvents() {
+        return adminService.getAdminEvents();
     }
     
     @GetMapping("/event/{eventId}")
-    public ResponseEntity<?> getEventDetails(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.getEventDetails(eventId, adminId);
+    public ResponseEntity<?> getEventDetails(@PathVariable Long eventId) {
+        return adminService.getEventDetails(eventId);
     }
     
     @PostMapping("/event/{eventId}/notify-waitlist")
-    public ResponseEntity<?> notifyWaitlistUsers(@PathVariable Long eventId, @RequestParam Long adminId) {
-        return adminService.notifyWaitlistUsers(eventId, adminId);
+    public ResponseEntity<?> notifyWaitlistUsers(@PathVariable Long eventId) {
+        return adminService.notifyWaitlistUsers(eventId);
     }
     
 }

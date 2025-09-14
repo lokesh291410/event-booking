@@ -20,7 +20,15 @@ public class CustomUserDetails implements UserDetails {
         this.username = userInfo.getUserName();
         this.password = userInfo.getPassword();
         this.authorities = Arrays.stream(userInfo.getRole().split(","))
-                .map(SimpleGrantedAuthority::new)
+                .map(role -> {
+                    // Check if role already has ROLE_ prefix to avoid double prefix
+                    String normalizedRole = role.trim();
+                    if (normalizedRole.startsWith("ROLE_")) {
+                        return new SimpleGrantedAuthority(normalizedRole);
+                    } else {
+                        return new SimpleGrantedAuthority("ROLE_" + normalizedRole);
+                    }
+                })
                 .collect(Collectors.toList());
     }
 

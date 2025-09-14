@@ -5,20 +5,18 @@ import org.springframework.http.ResponseEntity;
 import krashi.server.dto.EventDto;
 
 public interface AdminService {
-    ResponseEntity<?> createEvent(EventDto eventDto, Long adminId);
-    ResponseEntity<?> updateEvent(Long eventId, EventDto eventDto, Long adminId);
-    ResponseEntity<?> deleteEvent(Long eventId, Long adminId);
-    ResponseEntity<?> publishEvent(Long eventId, Long adminId);
-    ResponseEntity<?> cancelEvent(Long eventId, String reason, Long adminId);
+    ResponseEntity<?> createEvent(EventDto eventDto);
+    ResponseEntity<?> updateEvent(Long eventId, EventDto eventDto);
+    ResponseEntity<?> deleteEvent(Long eventId);
+    ResponseEntity<?> publishEvent(Long eventId);
+    ResponseEntity<?> cancelEvent(Long eventId, String reason);
     
-    // Analytics and management
-    ResponseEntity<?> getEventStatistics(Long eventId, Long adminId);
-    ResponseEntity<?> getEventBookings(Long eventId, Long adminId);
-    ResponseEntity<?> getEventWaitlist(Long eventId, Long adminId);
-    ResponseEntity<?> getEventFeedback(Long eventId, Long adminId);
-    ResponseEntity<?> getAdminEvents(Long adminId); // Admin can see only their events
-    ResponseEntity<?> getEventDetails(Long eventId, Long adminId); // Get comprehensive event details
+    ResponseEntity<?> getEventStatistics(Long eventId);
+    ResponseEntity<?> getEventBookings(Long eventId);
+    ResponseEntity<?> getEventWaitlist(Long eventId);
+    ResponseEntity<?> getEventFeedback(Long eventId);
+    ResponseEntity<?> getAdminEvents();
+    ResponseEntity<?> getEventDetails(Long eventId);
     
-    // Waitlist management
-    ResponseEntity<?> notifyWaitlistUsers(Long eventId, Long adminId);
+    ResponseEntity<?> notifyWaitlistUsers(Long eventId);
 }

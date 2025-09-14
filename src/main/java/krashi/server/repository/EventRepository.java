@@ -18,7 +18,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByTitleContainingIgnoreCase(String title);
     List<Event> findByTitleContainingIgnoreCaseAndStatus(String title, String status);
     
-    // Methods for admin-specific event management
     List<Event> findByCreatedBy_Id(Long createdById);
     List<Event> findByCreatedBy_IdAndStatus(Long createdById, String status);
     

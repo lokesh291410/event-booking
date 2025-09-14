@@ -9,7 +9,6 @@ import java.util.List;
 @Getter
 @Setter
 public class EventDetailResponseDto {
-    // Basic event information
     private Long id;
     private String title;
     private String description;
@@ -29,27 +28,21 @@ public class EventDetailResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    // Creator information
     private Long createdById;
     private String createdByName;
     
-    // Statistics
     private int totalBookings;
     private int bookedSeats;
     private int waitlistCount;
     private double averageRating;
     private int totalFeedbacks;
     
-    // Recent bookings (limited to last 5)
     private List<BookingDto> recentBookings;
     
-    // Waitlist summary
     private List<WaitlistSummaryDto> waitlistUsers;
     
-    // Feedback summary
     private List<FeedbackSummaryDto> recentFeedbacks;
     
-    // Inner classes for nested data
     @Getter
     @Setter
     public static class WaitlistSummaryDto {

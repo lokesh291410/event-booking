@@ -13,6 +13,7 @@ public interface EventFeedbackRepository extends JpaRepository<EventFeedback, Lo
     List<EventFeedback> findByEventId(Long eventId);
     List<EventFeedback> findByUserId(Long userId);
     boolean existsByUserIdAndEventId(Long userId, Long eventId);
+    long countByEvent_Id(Long eventId);
     
     @Query("SELECT AVG(ef.rating) FROM EventFeedback ef WHERE ef.event.id = :eventId")
     Double getAverageRatingByEventId(Long eventId);

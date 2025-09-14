@@ -31,4 +31,5 @@ public class Waitlist {
     private String status; // WAITING, NOTIFIED, EXPIRED
     private LocalDateTime joinedAt;
     private LocalDateTime notifiedAt;
+    private int priority;
 }

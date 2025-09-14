@@ -22,7 +22,6 @@ public class BookingToDto {
             bookingDto.setEventId(booking.getEvent().getId());
             bookingDto.setEventTitle(booking.getEvent().getTitle());
             
-            // Add event date and time
             if (booking.getEvent().getDateTime() != null) {
                 bookingDto.setEventDate(booking.getEvent().getDateTime().toLocalDate().format(DATE_FORMATTER));
                 bookingDto.setEventTime(booking.getEvent().getDateTime().toLocalTime().format(TIME_FORMATTER));

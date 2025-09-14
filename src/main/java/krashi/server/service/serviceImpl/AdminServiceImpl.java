@@ -29,9 +29,9 @@ import krashi.server.mapping.EventToDto;
 import krashi.server.repository.BookingRepository;
 import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
-import krashi.server.repository.UserInfoRepository;
 import krashi.server.repository.WaitlistRepository;
 import krashi.server.service.AdminService;
+import krashi.server.service.AuthenticationService;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -42,13 +42,25 @@ public class AdminServiceImpl implements AdminService{
     private final BookingRepository bookingRepository;
     private final WaitlistRepository waitlistRepository;
     private final EventFeedbackRepository eventFeedbackRepository;
-    private final UserInfoRepository userInfoRepository;
+    private final AuthenticationService authenticationService;
+
+    private void verifyEventOwnership(Event event, UserInfo admin) {
+        if (event.getCreatedBy() == null) {
+            throw new BadRequestException("Event has no creator assigned");
+        }
+        
+        if (admin == null || admin.getId() == null) {
+            throw new BadRequestException("Invalid admin user");
+        }
+        
+        if (!event.getCreatedBy().getId().equals(admin.getId())) {
+            throw new AccessDeniedException("You can only access events you created");
+        }
+    }
 
     @Override
-    public ResponseEntity<?> createEvent(EventDto eventDto, Long adminId) {
-        // Verify admin exists
-        UserInfo admin = userInfoRepository.findById(adminId)
-            .orElseThrow(() -> new ResourceNotFoundException("Admin with ID " + adminId + " not found"));
+    public ResponseEntity<?> createEvent(EventDto eventDto) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
         Event event = new Event();
         event.setTitle(eventDto.getTitle());
@@ -58,7 +70,6 @@ public class AdminServiceImpl implements AdminService{
         LocalTime eventTime = LocalTime.parse(eventDto.getTime());
         LocalDateTime eventDateTime = LocalDateTime.of(eventDate, eventTime);
         
-        // Validate event date is in the future
         if (eventDateTime.isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Event date and time must be in the future");
         }
@@ -95,14 +106,13 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> updateEvent(Long eventId, EventDto eventDto, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> updateEvent(Long eventId, EventDto eventDto) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only update events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         event.setTitle(eventDto.getTitle());
         event.setDescription(eventDto.getDescription());
@@ -111,7 +121,6 @@ public class AdminServiceImpl implements AdminService{
         LocalTime eventTime = LocalTime.parse(eventDto.getTime());
         LocalDateTime eventDateTime = LocalDateTime.of(eventDate, eventTime);
         
-        // Validate event date is in the future (unless already published)
         if (!event.getStatus().equals("PUBLISHED") && eventDateTime.isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Event date and time must be in the future");
         }
@@ -138,7 +147,6 @@ public class AdminServiceImpl implements AdminService{
         event.setOrganizerEmail(eventDto.getOrganizerEmail());
         event.setUpdatedAt(LocalDateTime.now());
 
-        // Only update total seats if not published yet
         if (event.getStatus().equals("DRAFT")) {
             event.setTotalSeats(eventDto.getTotalSeats());
             event.setAvailableSeats(eventDto.getTotalSeats());
@@ -149,18 +157,15 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> deleteEvent(Long eventId, Long adminId) {
+    public ResponseEntity<?> deleteEvent(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
+        
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only delete events you created");
-        }
+        verifyEventOwnership(event, admin);
         
-        // Check if event has bookings
-        List<Booking> bookings = bookingRepository.findByEvent_Id(eventId);
-        if (!bookings.isEmpty()) {
+        if (bookingRepository.existsByEvent_Id(eventId)) {
             throw new BadRequestException("Cannot delete event with existing bookings. Cancel the event instead.");
         }
         
@@ -169,16 +174,14 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> publishEvent(Long eventId, Long adminId) {
+    public ResponseEntity<?> publishEvent(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
+        
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only publish events you created");
-        }
+        verifyEventOwnership(event, admin);
         
-        // Validate event can be published
         if (!event.getStatus().equals("DRAFT")) {
             throw new BadRequestException("Only draft events can be published");
         }
@@ -195,14 +198,13 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> cancelEvent(Long eventId, String reason, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> cancelEvent(Long eventId, String reason) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only cancel events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         event.setStatus("CANCELLED");
         event.setUpdatedAt(LocalDateTime.now());
@@ -212,72 +214,72 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> getEventStatistics(Long eventId, Long adminId) {
+    public ResponseEntity<?> getEventStatistics(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
+        
         Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only view statistics for events you created");
-        }
+        verifyEventOwnership(event, admin);
         
-        List<Booking> bookings = bookingRepository.findByEvent_Id(eventId);
-        List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
+        long totalBookings = bookingRepository.countByEvent_Id(eventId);
+        long waitlistCount = waitlistRepository.countByEvent_IdAndStatus(eventId, "WAITING");
         Double averageRating = eventFeedbackRepository.getAverageRatingByEventId(eventId);
         
         Map<String, Object> stats = new HashMap<>();
         stats.put("event", event);
-        stats.put("totalBookings", bookings.size());
+        stats.put("totalBookings", totalBookings);
         stats.put("bookedSeats", event.getTotalSeats() - event.getAvailableSeats());
         stats.put("availableSeats", event.getAvailableSeats());
-        stats.put("waitlistCount", waitlist.size());
+        stats.put("waitlistCount", waitlistCount);
         stats.put("averageRating", averageRating != null ? averageRating : 0.0);
         
         return ResponseEntity.ok(stats);
     }
 
     @Override
-    public ResponseEntity<?> getEventBookings(Long eventId, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> getEventBookings(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        // Check if the admin is the creator of the event
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only view bookings for events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         List<Booking> bookings = bookingRepository.findByEvent_Id(eventId);
         return ResponseEntity.ok(bookings);
     }
 
     @Override
-    public ResponseEntity<?> getEventWaitlist(Long eventId, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> getEventWaitlist(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only view waitlist for events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
         return ResponseEntity.ok(waitlist);
     }
 
     @Override
-    public ResponseEntity<?> getEventFeedback(Long eventId, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> getEventFeedback(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only view feedback for events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         List<EventFeedback> feedback = eventFeedbackRepository.findByEventId(eventId);
         return ResponseEntity.ok(feedback);
     }
 
     @Override
-    public ResponseEntity<?> getAdminEvents(Long adminId) {
+    public ResponseEntity<?> getAdminEvents() {
+        Long adminId = authenticationService.getCurrentAdminId();
+        
         List<Event> events = eventRepository.findByCreatedBy_Id(adminId);
         List<EventResponseDto> eventDtos = events.stream()
                 .map(EventToDto::mapToResponseDto)
@@ -286,13 +288,13 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> getEventDetails(Long eventId, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> getEventDetails(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only view details for events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
@@ -335,11 +337,15 @@ public class AdminServiceImpl implements AdminService{
         List<EventFeedback> feedbacks = eventFeedbackRepository.findByEventId(eventId);
         Double averageRating = eventFeedbackRepository.getAverageRatingByEventId(eventId);
         
-        details.setTotalBookings(bookings.size());
+        // Use count methods for better performance
+        long totalBookings = bookingRepository.countByEvent_Id(eventId);
+        long totalFeedbacks = eventFeedbackRepository.countByEvent_Id(eventId);
+        
+        details.setTotalBookings((int)totalBookings);
         details.setBookedSeats(event.getTotalSeats() - event.getAvailableSeats());
         details.setWaitlistCount(waitlist.size());
         details.setAverageRating(averageRating != null ? averageRating : 0.0);
-        details.setTotalFeedbacks(feedbacks.size());
+        details.setTotalFeedbacks((int)totalFeedbacks);
         
         List<BookingDto> recentBookings = bookings.stream()
                 .sorted((b1, b2) -> b2.getBookingDateTime().compareTo(b1.getBookingDateTime()))
@@ -383,13 +389,13 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public ResponseEntity<?> notifyWaitlistUsers(Long eventId, Long adminId) {
-        Event event = eventRepository.findById(eventId)
-            .orElseThrow(() -> new ResourceNotFoundException("Event with ID " + eventId + " not found"));
+    public ResponseEntity<?> notifyWaitlistUsers(Long eventId) {
+        UserInfo admin = authenticationService.getCurrentAdmin();
         
-        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(adminId)) {
-            throw new AccessDeniedException("You can only notify waitlist users for events you created");
-        }
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
+        
+        verifyEventOwnership(event, admin);
         
         List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
         

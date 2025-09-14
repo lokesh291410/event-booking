@@ -9,7 +9,6 @@ import java.util.List;
 @Getter
 @Setter
 public class UserEventDetailDto {
-    // Basic event information
     private Long id;
     private String title;
     private String description;
@@ -27,7 +26,6 @@ public class UserEventDetailDto {
     private String organizerEmail;
     private String status;
     
-    // User-relevant statistics
     private int bookedSeats;
     private boolean available;
     private boolean hasWaitlist;
@@ -35,10 +33,8 @@ public class UserEventDetailDto {
     private double averageRating;
     private int totalFeedbacks;
     
-    // Recent public feedbacks (for user reference)
     private List<PublicFeedbackDto> recentFeedbacks;
     
-    // Inner class for public feedback display
     @Getter
     @Setter
     public static class PublicFeedbackDto {

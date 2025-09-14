@@ -1,7 +1,6 @@
 package krashi.server.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,53 +17,52 @@ import lombok.AllArgsConstructor;
 @RestController
 @RequestMapping("/user")
 @AllArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:4200"})
 public class UserController {
     private final UserService userService;
 
-    @PostMapping("/book/{eventId}/{userId}/{numberOfSeats}")
-    public ResponseEntity<?> bookEvent(@PathVariable Long eventId, @PathVariable Long userId, @PathVariable int numberOfSeats) {
-        return userService.bookEvent(eventId, userId, numberOfSeats);
+    @PostMapping("/book/{eventId}/{numberOfSeats}")
+    public ResponseEntity<?> bookEvent(@PathVariable Long eventId, @PathVariable int numberOfSeats) {
+        return userService.bookEvent(eventId, numberOfSeats);
     }
 
-    @PostMapping("/cancel/{bookingId}/{userId}")
-    public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId, @PathVariable Long userId) {
-        return userService.cancelBooking(bookingId, userId);
+    @PostMapping("/cancel/{bookingId}")
+    public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId) {
+        return userService.cancelBooking(bookingId);
     }
 
-    @GetMapping("/details/{bookingId}/{userId}")
-    public ResponseEntity<?> getBookingDetails(@PathVariable Long bookingId, @PathVariable Long userId) {
-        return userService.getBookingDetails(bookingId, userId);
+    @GetMapping("/details/{bookingId}")
+    public ResponseEntity<?> getBookingDetails(@PathVariable Long bookingId) {
+        return userService.getBookingDetails(bookingId);
     }
 
-    @GetMapping("/bookings/{userId}")
-    public ResponseEntity<?> getUserBookings(@PathVariable Long userId) {
-        return userService.getUserBookings(userId);
+    @GetMapping("/bookings")
+    public ResponseEntity<?> getUserBookings() {
+        return userService.getUserBookings();
     }
     
-    @PostMapping("/waitlist/{eventId}/{userId}/{numberOfSeats}")
-    public ResponseEntity<?> joinWaitlist(@PathVariable Long eventId, @PathVariable Long userId, @PathVariable int numberOfSeats) {
-        return userService.joinWaitlist(eventId, userId, numberOfSeats);
+    @PostMapping("/waitlist/{eventId}/{numberOfSeats}")
+    public ResponseEntity<?> joinWaitlist(@PathVariable Long eventId, @PathVariable int numberOfSeats) {
+        return userService.joinWaitlist(eventId, numberOfSeats);
     }
     
-    @GetMapping("/waitlist/{userId}")
-    public ResponseEntity<?> getUserWaitlist(@PathVariable Long userId) {
-        return userService.getUserWaitlist(userId);
+    @GetMapping("/waitlist")
+    public ResponseEntity<?> getUserWaitlist() {
+        return userService.getUserWaitlist();
     }
     
-    @DeleteMapping("/waitlist/{waitlistId}/{userId}")
-    public ResponseEntity<?> removeFromWaitlist(@PathVariable Long waitlistId, @PathVariable Long userId) {
-        return userService.removeFromWaitlist(waitlistId, userId);
+    @DeleteMapping("/waitlist/{waitlistId}")
+    public ResponseEntity<?> removeFromWaitlist(@PathVariable Long waitlistId) {
+        return userService.removeFromWaitlist(waitlistId);
     }
     
-    @PostMapping("/feedback/{userId}")
-    public ResponseEntity<?> submitEventFeedback(@RequestBody EventFeedbackDto feedbackDto, @PathVariable Long userId) {
-        return userService.submitEventFeedback(feedbackDto, userId);
+    @PostMapping("/feedback")
+    public ResponseEntity<?> submitEventFeedback(@RequestBody EventFeedbackDto feedbackDto) {
+        return userService.submitEventFeedback(feedbackDto);
     }
     
-    @GetMapping("/feedback/{userId}")
-    public ResponseEntity<?> getUserFeedback(@PathVariable Long userId) {
-        return userService.getUserFeedback(userId);
+    @GetMapping("/feedback")
+    public ResponseEntity<?> getUserFeedback() {
+        return userService.getUserFeedback();
     }
     
     @GetMapping("/events/upcoming")

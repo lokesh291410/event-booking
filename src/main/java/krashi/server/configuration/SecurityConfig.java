@@ -6,12 +6,15 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import krashi.server.filter.JwtFilter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
 
@@ -20,7 +23,12 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-public class SecurutyConfig {
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,53 +37,49 @@ public class SecurutyConfig {
         http.authorizeHttpRequests(authorizeRequests -> authorizeRequests
             .requestMatchers(
                 "/", "/hello", "/signup", "/events", "/events/**", "/auth/login",
+                "/api/auth/**",
                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
             ).permitAll()
             .requestMatchers("/admin/**").hasRole("ADMIN")
             .requestMatchers("/user/**").hasRole("USER")
             .anyRequest().authenticated()
         );
+        http.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         
-        http.formLogin(withDefaults());
-        http.httpBasic(withDefaults());
+        // Custom exception handlers for better API responses
+        http.exceptionHandling(exceptions -> exceptions
+            .accessDeniedHandler(accessDeniedHandler)
+            .authenticationEntryPoint(authenticationEntryPoint)
+        );
+        
+        // http.formLogin(withDefaults());
+        // http.httpBasic(withDefaults());
         
         return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Allow specific origins (replace with your frontend URLs)
         configuration.setAllowedOriginPatterns(Arrays.asList(
             "http://localhost:5173"
         ));
         
-        // Allow all HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
         
-        // Allow all headers
         configuration.setAllowedHeaders(Arrays.asList("*"));
         
-        // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
         
-        // Cache preflight requests for 1 hour
         configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
-    // AuthenticationProvider bean is automatically configured by Spring Security
-    // when UserDetailsService and PasswordEncoder beans are present
 }
 

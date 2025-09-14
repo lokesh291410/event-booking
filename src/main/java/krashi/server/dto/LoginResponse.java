@@ -10,15 +10,5 @@ import lombok.Setter;
 public class LoginResponse {
     private boolean success;
     private String message;
-    private Long userId;
     private String username;
-    private String name;
-    private String email;
-    private String role;
-    
-    // Constructor for failed login
-    public LoginResponse(boolean success, String message) {
-        this.success = success;
-        this.message = message;
-    }
 }

@@ -42,12 +42,10 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public ResponseEntity<?> signUp(String username, String name, String email, String password, String role) {
-        // Check if email already exists
         if (userInfoRepository.findByEmail(email).isPresent()) {
             throw new BadRequestException("Email already exists. Please use a different email address.");
         }
         
-        // Check if username already exists
         if (userInfoRepository.findByUserName(username).isPresent()) {
             throw new BadRequestException("Username already exists. Please choose a different username.");
         }
@@ -84,7 +82,6 @@ public class SignUpServiceImpl implements SignUpService {
         
         Event event = eventOpt.get();
         
-        // Only show published events to users
         if (!"PUBLISHED".equals(event.getStatus())) {
             return ResponseEntity.notFound().build();
         }
@@ -94,7 +91,6 @@ public class SignUpServiceImpl implements SignUpService {
         
         UserEventDetailDto details = new UserEventDetailDto();
         
-        // Basic event information
         details.setId(event.getId());
         details.setTitle(event.getTitle());
         details.setDescription(event.getDescription());
@@ -119,22 +115,20 @@ public class SignUpServiceImpl implements SignUpService {
         details.setOrganizerEmail(event.getOrganizerEmail());
         details.setStatus(event.getStatus());
         
-        // User-relevant statistics
         details.setBookedSeats(event.getTotalSeats() - event.getAvailableSeats());
         details.setAvailable(event.getAvailableSeats() > 0);
         
-        // Get waitlist information
         List<Waitlist> waitlist = waitlistRepository.findByEventIdAndStatus(eventId, "WAITING");
-        details.setWaitlistCount(waitlist.size());
-        details.setHasWaitlist(waitlist.size() > 0);
-        
-        // Get feedback information
         List<EventFeedback> feedbacks = eventFeedbackRepository.findByEventId(eventId);
         Double averageRating = eventFeedbackRepository.getAverageRatingByEventId(eventId);
-        details.setAverageRating(averageRating != null ? averageRating : 0.0);
-        details.setTotalFeedbacks(feedbacks.size());
         
-        // Recent public feedbacks (last 5, for user reference)
+        long totalFeedbacks = eventFeedbackRepository.countByEvent_Id(eventId);
+        
+        details.setWaitlistCount(waitlist.size());
+        details.setHasWaitlist(waitlist.size() > 0);
+        details.setAverageRating(averageRating != null ? averageRating : 0.0);
+        details.setTotalFeedbacks((int)totalFeedbacks);
+        
         List<UserEventDetailDto.PublicFeedbackDto> recentFeedbacks = feedbacks.stream()
                 .sorted((f1, f2) -> f2.getSubmittedAt().compareTo(f1.getSubmittedAt()))
                 .limit(5)

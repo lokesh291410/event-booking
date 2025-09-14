@@ -11,4 +11,6 @@ import krashi.server.entity.Booking;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByUser_Id(Long userId);
     List<Booking> findByEvent_Id(Long eventId);
+    boolean existsByEvent_Id(Long eventId);
+    int countByEvent_Id(Long eventId);
 }

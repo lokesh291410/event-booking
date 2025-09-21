@@ -1,70 +1,62 @@
 package krashi.server.service;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-
 import krashi.server.entity.UserInfo;
-import krashi.server.exception.AccessDeniedException;
-import krashi.server.exception.ResourceNotFoundException;
-import krashi.server.repository.UserInfoRepository;
-import lombok.AllArgsConstructor;
 
-@Service
-@AllArgsConstructor
-public class AuthenticationService {
+public interface AuthenticationService {
     
-    private final UserInfoRepository userInfoRepository;
+    /**
+     * Gets the currently authenticated user.
+     * 
+     * @return UserInfo of the authenticated user
+     * @throws AccessDeniedException if user is not authenticated
+     * @throws ResourceNotFoundException if user is not found
+     */
+    UserInfo getCurrentUser();
     
-    public UserInfo getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AccessDeniedException("User not authenticated");
-        }
-        
-        String username = authentication.getName();
-        return userInfoRepository.findByUserName(username)
-            .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
-    }
+    /**
+     * Gets the currently authenticated admin user.
+     * 
+     * @return UserInfo of the authenticated admin
+     * @throws AccessDeniedException if user is not authenticated or not an admin
+     * @throws ResourceNotFoundException if user is not found
+     */
+    UserInfo getCurrentAdmin();
     
-    public UserInfo getCurrentAdmin() {
-        UserInfo user = getCurrentUser();
-        
-        if (!"ROLE_ADMIN".equals(user.getRole())) {
-            throw new AccessDeniedException("Only admins can perform this operation");
-        }
-        
-        return user;
-    }
+    /**
+     * Gets the ID of the currently authenticated user.
+     * 
+     * @return User ID
+     * @throws AccessDeniedException if user is not authenticated
+     */
+    Long getCurrentUserId();
     
-    public Long getCurrentUserId() {
-        return getCurrentUser().getId();
-    }
+    /**
+     * Gets the ID of the currently authenticated admin.
+     * 
+     * @return Admin user ID
+     * @throws AccessDeniedException if user is not authenticated or not an admin
+     */
+    Long getCurrentAdminId();
     
-    public Long getCurrentAdminId() {
-        return getCurrentAdmin().getId();
-    }
+    /**
+     * Gets the username of the currently authenticated user.
+     * 
+     * @return Username or null if not authenticated
+     */
+    String getCurrentUsername();
     
-    public String getCurrentUsername() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null ? authentication.getName() : null;
-    }
+    /**
+     * Checks if the currently authenticated user is an admin.
+     * 
+     * @return true if current user is admin, false otherwise
+     */
+    boolean isCurrentUserAdmin();
     
-    public boolean isCurrentUserAdmin() {
-        try {
-            UserInfo user = getCurrentUser();
-            return "ROLE_ADMIN".equals(user.getRole());
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    public boolean isCurrentUser(Long userId) {
-        try {
-            return getCurrentUserId().equals(userId);
-        } catch (Exception e) {
-            return false;
-        }
-    }
+    /**
+     * Checks if the given user ID matches the currently authenticated user.
+     * 
+     * @param userId User ID to check
+     * @return true if the given user ID matches current user, false otherwise
+     */
+    boolean isCurrentUser(Long userId);
 }

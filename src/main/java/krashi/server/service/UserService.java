@@ -10,7 +10,6 @@ public interface UserService {
     ResponseEntity<?> getBookingDetails(Long bookingId);
     ResponseEntity<?> getUserBookings();
     
-    ResponseEntity<?> joinWaitlist(Long eventId, int numberOfSeats);
     ResponseEntity<?> getUserWaitlist();
     ResponseEntity<?> removeFromWaitlist(Long waitlistId);
     

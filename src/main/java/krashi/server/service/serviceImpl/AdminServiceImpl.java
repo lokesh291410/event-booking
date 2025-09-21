@@ -337,7 +337,6 @@ public class AdminServiceImpl implements AdminService{
         List<EventFeedback> feedbacks = eventFeedbackRepository.findByEventId(eventId);
         Double averageRating = eventFeedbackRepository.getAverageRatingByEventId(eventId);
         
-        // Use count methods for better performance
         long totalBookings = bookingRepository.countByEvent_Id(eventId);
         long totalFeedbacks = eventFeedbackRepository.countByEvent_Id(eventId);
         

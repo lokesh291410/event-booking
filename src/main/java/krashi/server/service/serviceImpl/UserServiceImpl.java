@@ -10,10 +10,10 @@ import org.springframework.stereotype.Service;
 import krashi.server.dto.BookingDto;
 import krashi.server.dto.EventFeedbackDto;
 import krashi.server.dto.EventResponseDto;
+import krashi.server.dto.PromotionResultDto;
 import krashi.server.dto.UserFeedbackResponseDto;
 import krashi.server.exception.AccessDeniedException;
 import krashi.server.exception.BadRequestException;
-import krashi.server.exception.InsufficientSeatsException;
 import krashi.server.exception.ResourceNotFoundException;
 import krashi.server.entity.Booking;
 import krashi.server.entity.Event;
@@ -28,7 +28,9 @@ import krashi.server.repository.EventFeedbackRepository;
 import krashi.server.repository.EventRepository;
 import krashi.server.repository.WaitlistRepository;
 import krashi.server.service.AuthenticationService;
+import krashi.server.service.EmailNotificationService;
 import krashi.server.service.UserService;
+import krashi.server.service.WaitlistPromotionService;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -41,6 +43,8 @@ public class UserServiceImpl implements UserService {
     private final WaitlistRepository waitlistRepository;
     private final EventFeedbackRepository eventFeedbackRepository;
     private final AuthenticationService authenticationService;
+    private final WaitlistPromotionService waitlistPromotionService;
+    private final EmailNotificationService emailNotificationService;
 
     private void verifyBookingOwnership(Booking booking, UserInfo user) {
         if (booking.getUser() == null) {
@@ -99,23 +103,48 @@ public class UserServiceImpl implements UserService {
         if (!"PUBLISHED".equals(event.getStatus())) {
             throw new BadRequestException("Event is not available for booking");
         }
-        
-        if (event.getAvailableSeats() < numberOfSeats) {
-            throw new InsufficientSeatsException("Not enough seats available. Available: " + event.getAvailableSeats() + ", Requested: " + numberOfSeats);
+
+        boolean hasExistingBooking = bookingRepository.existsByUserIdAndEventId(user.getId(), eventId);
+        if (hasExistingBooking) {
+            throw new BadRequestException("You already have a booking for this event");
         }
+        
+        boolean isOnWaitlist = waitlistRepository.existsByUserIdAndEventId(user.getId(), eventId);
+        if (isOnWaitlist) {
+            throw new BadRequestException("You are already on the waitlist for this event");
+        }
+        
+        if (event.getAvailableSeats() >= numberOfSeats) {
+            Booking booking = new Booking();
+            booking.setUser(user);
+            booking.setEvent(event);
+            booking.setNumberOfSeats(numberOfSeats);
+            booking.setBookingDateTime(LocalDateTime.now());
+            booking.setStatus("Confirmed");
 
-        Booking booking = new Booking();
-        booking.setUser(user);
-        booking.setEvent(event);
-        booking.setNumberOfSeats(numberOfSeats);
-        booking.setBookingDateTime(LocalDateTime.now());
-        booking.setStatus("Confirmed");
+            event.setAvailableSeats(event.getAvailableSeats() - numberOfSeats);
+            eventRepository.save(event);
+            Booking savedBooking = bookingRepository.save(booking);
 
-        event.setAvailableSeats(event.getAvailableSeats() - numberOfSeats);
-        eventRepository.save(event);
-        bookingRepository.save(booking);
+            emailNotificationService.sendBookingConfirmationEmail(user, event, numberOfSeats, savedBooking.getId());
 
-        return ResponseEntity.ok("Booking successful");
+            return ResponseEntity.ok("Booking successful! Your seats have been confirmed.");
+        } else {
+            Waitlist waitlist = new Waitlist();
+            waitlist.setUser(user);
+            waitlist.setEvent(event);
+            waitlist.setRequestedSeats(numberOfSeats);
+            waitlist.setStatus("WAITING");
+            waitlist.setJoinedAt(LocalDateTime.now());
+
+            waitlistRepository.save(waitlist);
+            
+            emailNotificationService.sendWaitlistConfirmationEmail(user, event, numberOfSeats);
+            
+            return ResponseEntity.ok("Event is currently full. You have been automatically added to the waitlist. " +
+                    "Available seats: " + event.getAvailableSeats() + ", Requested: " + numberOfSeats + 
+                    ". You will be notified when seats become available.");
+        }
     }
 
     @Override
@@ -136,11 +165,24 @@ public class UserServiceImpl implements UserService {
         }
 
         Event event = booking.getEvent();
-        event.setAvailableSeats(event.getAvailableSeats() + booking.getNumberOfSeats());
+        int releasedSeats = booking.getNumberOfSeats();
+        
+        event.setAvailableSeats(event.getAvailableSeats() + releasedSeats);
         eventRepository.save(event);
 
         booking.setStatus("Cancelled");
         bookingRepository.save(booking);
+        
+        emailNotificationService.sendBookingCancellationEmail(currentUser, event, releasedSeats, booking.getId());
+        
+        
+        PromotionResultDto promotionResult = waitlistPromotionService.processWaitlistPromotions(event, releasedSeats);
+        
+        if (promotionResult.isHasPromotions()) {
+            emailNotificationService.sendPromotionNotificationEmails(promotionResult.getPromotedUsers());
+            
+            return ResponseEntity.ok("Booking cancelled successfully. " + promotionResult.getMessage());
+        }
         
         return ResponseEntity.ok("Booking cancelled successfully");
     }
@@ -172,40 +214,6 @@ public class UserServiceImpl implements UserService {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(bookingDtos);
-    }
-
-    @Override
-    public ResponseEntity<?> joinWaitlist(Long eventId, int numberOfSeats) {
-        UserInfo currentUser = authenticationService.getCurrentUser();
-        
-        if (eventId == null) {
-            throw new BadRequestException("Event ID is required");
-        }
-        
-        if (numberOfSeats <= 0) {
-            throw new BadRequestException("Number of seats must be greater than 0");
-        }
-
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", eventId));
-
-        if (event.getAvailableSeats() >= numberOfSeats) {
-            throw new BadRequestException("Event has available seats. Please book directly.");
-        }
-
-        if (waitlistRepository.existsByUserIdAndEventId(currentUser.getId(), eventId)) {
-            throw new BadRequestException("You are already on the waitlist for this event");
-        }
-
-        Waitlist waitlist = new Waitlist();
-        waitlist.setUser(currentUser);
-        waitlist.setEvent(event);
-        waitlist.setRequestedSeats(numberOfSeats);
-        waitlist.setStatus("WAITING");
-        waitlist.setJoinedAt(LocalDateTime.now());
-
-        waitlistRepository.save(waitlist);
-        return ResponseEntity.ok("Successfully joined waitlist");
     }
 
     @Override

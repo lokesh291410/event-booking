@@ -40,11 +40,6 @@ public class UserController {
         return userService.getUserBookings();
     }
     
-    @PostMapping("/waitlist/{eventId}/{numberOfSeats}")
-    public ResponseEntity<?> joinWaitlist(@PathVariable Long eventId, @PathVariable int numberOfSeats) {
-        return userService.joinWaitlist(eventId, numberOfSeats);
-    }
-    
     @GetMapping("/waitlist")
     public ResponseEntity<?> getUserWaitlist() {
         return userService.getUserWaitlist();

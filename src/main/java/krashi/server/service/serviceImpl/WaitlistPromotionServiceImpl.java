@@ -32,7 +32,6 @@ public class WaitlistPromotionServiceImpl implements WaitlistPromotionService {
         log.info("Processing waitlist promotions for event: {} with {} available seats", 
                 event.getId(), availableSeats);
         
-        // Get all users waiting for this event, sorted by join date (first-come-first-served)
         List<Waitlist> waitingUsers = waitlistRepository.findByEventIdAndStatus(event.getId(), "WAITING");
         
         if (waitingUsers.isEmpty()) {
@@ -40,7 +39,6 @@ public class WaitlistPromotionServiceImpl implements WaitlistPromotionService {
             return createEmptyPromotionResult();
         }
         
-        // Sort by join date to ensure fairness
         waitingUsers.sort((w1, w2) -> w1.getJoinedAt().compareTo(w2.getJoinedAt()));
         
         List<PromotedUserDto> promotedUsers = new ArrayList<>();
@@ -50,20 +48,16 @@ public class WaitlistPromotionServiceImpl implements WaitlistPromotionService {
         
         for (Waitlist waitlistEntry : waitingUsers) {
             if (remainingSeats >= waitlistEntry.getRequestedSeats()) {
-                // Promote this user from waitlist to confirmed booking
                 Booking newBooking = createBookingFromWaitlist(waitlistEntry);
                 Booking savedBooking = bookingRepository.save(newBooking);
                 
-                // Update remaining seats
                 remainingSeats -= waitlistEntry.getRequestedSeats();
                 totalSeatsPromoted += waitlistEntry.getRequestedSeats();
                 totalPromotedUsers++;
                 
-                // Create promoted user DTO
                 PromotedUserDto promotedUser = createPromotedUserDto(waitlistEntry, savedBooking);
                 promotedUsers.add(promotedUser);
                 
-                // Remove from waitlist
                 waitlistRepository.delete(waitlistEntry);
                 
                 log.info("Promoted user {} for event {} - {} seats", 
@@ -71,14 +65,12 @@ public class WaitlistPromotionServiceImpl implements WaitlistPromotionService {
                         event.getId(), 
                         waitlistEntry.getRequestedSeats());
             } else {
-                // No more seats available for remaining waitlist users
                 log.info("Insufficient seats for remaining waitlist users. Remaining: {}, Required: {}", 
                         remainingSeats, waitlistEntry.getRequestedSeats());
                 break;
             }
         }
         
-        // Update event with final available seats count
         event.setAvailableSeats(remainingSeats);
         eventRepository.save(event);
         
@@ -87,7 +79,7 @@ public class WaitlistPromotionServiceImpl implements WaitlistPromotionService {
     
     @Override
     public boolean hasWaitlistUsers(Long eventId) {
-        return waitlistRepository.countByEvent_IdAndStatus(eventId, "WAITING") > 0;
+        return getWaitlistCount(eventId) > 0;
     }
     
     @Override
